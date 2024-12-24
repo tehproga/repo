@@ -88,6 +88,25 @@ CREATE TABLE IF NOT EXISTS restricted_zones (
     speed_limit smallint NOT NULL CHECK (speed_limit >= 0)
 );
 
+CREATE TABLE IF NOT EXISTS totp (
+    code integer NOT NULL,
+    date_sent timestamp with time zone NOT NULL DEFAULT now(),
+    phone text NOT NULL,
+    signature text UNIQUE NOT NULL,
+    date_used timestamp with time zone CHECK (date_used > date_sent)
+);
+
+CREATE TABLE IF NOT EXISTS auth_tokens (
+    user_id uuid NOT NULL REFERENCES users(id),
+    value text UNIQUE NOT NULL,
+    date_expired timestamp with time zone NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+    name varchar(64) UNIQUE NOT NULL,
+    value text NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS subscriptions (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     title varchar(64) NOT NULL,
