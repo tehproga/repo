@@ -21,6 +21,31 @@ CREATE TABLE IF NOT EXISTS users (
     role user_role NOT NULL DEFAULT 'customer'
 );
 
+CREATE TABLE IF NOT EXISTS scooter_manufacturers (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title varchar(256) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS scooter_models (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    manufacturer_id uuid NOT NULL REFERENCES scooter_manufacturers(id),
+    title varchar(256) NOT NULL,
+    single_charge_mileage integer NOT NULL CHECK (single_charge_mileage > 0),
+    weight integer NOT NULL CHECK (weight > 0),
+    max_speed integer NOT NULL CHECK (max_speed > 0),
+    max_load integer NOT NULL CHECK (max_load > 0),
+    year smallint NOT NULL CHECK (year > 2000)
+);
+
+CREATE TYPE scooter_status AS ENUM ('enabled', 'disabled');
+
+CREATE TABLE IF NOT EXISTS scooters (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    model_id uuid NOT NULL REFERENCES scooter_models(id),
+    status scooter_status NOT NULL DEFAULT 'disabled',
+    number varchar(8) UNIQUE NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS restricted_zones (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     polygon geometry NOT NULL,
