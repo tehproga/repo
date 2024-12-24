@@ -46,6 +46,19 @@ CREATE TABLE IF NOT EXISTS scooters (
     number varchar(8) UNIQUE NOT NULL
 );
 
+CREATE TYPE scooter_lock_state AS ENUM ('locked', 'unlocked');
+CREATE TYPE scooter_lights_state AS ENUM ('on', 'off');
+
+CREATE TABLE IF NOT EXISTS pings (
+    scooter_id uuid NOT NULL REFERENCES scooters(id),
+    date timestamp with time zone NOT NULL DEFAULT now(),
+    meta_info json,
+    location geography NOT NULL,
+    battery_level smallint NOT NULL CHECK (battery_level >= 0 AND battery_level <= 100),
+    lock_state scooter_lock_state NOT NULL,
+    lights_state scooter_lights_state NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS rides (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id uuid NOT NULL REFERENCES users(id),
