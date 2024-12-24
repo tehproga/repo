@@ -69,6 +69,11 @@ CREATE TABLE IF NOT EXISTS rides (
     date_finished timestamp with time zone CHECK (date_finished > date_started)
 );
 
+CREATE TABLE IF NOT EXISTS parkings (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    location geography NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS restricted_zones (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     polygon geometry NOT NULL,
