@@ -1,0 +1,108 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST:-pg_db_master}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PORT: ${BACKEND_PORT:-3000}
+      TZ: ${TZ:-Europe/Moscow}
+    depends_on:
+      pg_db_master:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend_ro:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_HOST: ${POSTGRES_RO_HOST:-pg_db_slave}
+      POSTGRES_PORT: ${POSTGRES_RO_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_RO_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_RO_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_RO_DB}
+      PORT: ${BACKEND_PORT:-3000}
+      TZ: ${TZ:-Europe/Moscow}
+      IS_READONLY: "true"
+    depends_on:
+      pg_db_slave:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - BACKEND_URL=${FRONTEND_API_URL}
+    volumes:
+      - static:/app/dist/
+
+  nginx:
+    image: nginx:1.25.2
+    restart: unless-stopped
+    environment:
+      PORT: 80
+      BACKEND_HOST: backend
+      BACKEND_PORT: ${BACKEND_PORT:-3000}
+      BACKEND_RO_HOST: backend_ro
+      BACKEND_RO_PORT: ${BACKEND_PORT:-3000}
+    depends_on:
+      - backend
+      - backend_ro
+      - frontend
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates
+      - static:/var/www
+    ports:
+      - "80:80"
+
+  pg_db_master:
+    image: bitnami/postgresql:15.4.0
+    restart: on-failure
+    environment:
+      POSTGRESQL_USERNAME: ${POSTGRES_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRESQL_DATABASE: ${POSTGRES_DB}
+      POSTGRESQL_TIMEZONE: ${TZ:-Europe/Moscow}
+      # Репликация
+      POSTGRESQL_REPLICATION_MODE: master
+      POSTGRESQL_REPLICATION_USER: ${POSTGRES_USER}
+      POSTGRESQL_REPLICATION_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./pg_db/init/:/docker-entrypoint-initdb.d/
+      - pg_master_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+
+  pg_db_slave:
+    image: bitnami/postgresql:15.4.0
+    restart: on-failure
+    environment:
+      POSTGRESQL_USERNAME: ${POSTGRES_USER}
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRESQL_TIMEZONE: ${TZ:-Europe/Moscow}
+      # Репликация
+      POSTGRESQL_REPLICATION_MODE: slave
+      POSTGRESQL_REPLICATION_USER: ${POSTGRES_USER}
+      POSTGRESQL_REPLICATION_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRESQL_MASTER_HOST: pg_db_master
+      POSTGRESQL_MASTER_PORT_NUMBER: 5432
+    depends_on:
+      pg_db_master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+
+volumes:
+  pg_master_data:
+  static:
